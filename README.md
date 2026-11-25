@@ -69,13 +69,17 @@ the tunnel payload is opaque, so the Bun TLS fingerprint is preserved.
 
 ### Known model caveats on this host
 
+- OVH's lane sends absolute-form proxy requests, which the earlier relay
+  rejected with its own `405 CONNECT only`. The relay now forwards absolute-form
+  HTTP/HTTPS (including SSE) through the same WARP lease; re-test before
+  excluding `ovh-free/*` again.
+
 - `cline/*` models require an authenticated Cline browser session. Without it
   omp returns `401 ... re-authenticate your Cline account`; this is an account
   state issue, not an egress failure.
 - `longcat-2.5-free` is retired upstream and is excluded from the verdict.
-- `ovh-free/*` models return `405 CONNECT only` on this CONNECT-only relay
-  path (verified with `ovh-free/Qwen3.5-9B`); they need a different transport
-  and are excluded from the whitelist.
+- The earlier `405 CONNECT only` verdict for OVH came from the relay itself and
+  is fixed by absolute-form forwarding above.
 - The `nvidia/*:free`, `openrouter/free`, `particle-ai/particle-1:free` and
   `tidepool-alpha-free` probes timed out at 120s even with stdin closed; they
   are not in the verified no-auth whitelist.

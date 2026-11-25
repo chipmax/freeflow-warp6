@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"sync"
 	"testing"
@@ -212,5 +213,56 @@ func TestControlHTTPOverNetwork(t *testing.T) {
 	}
 	if resp.StatusCode != http.StatusOK || !strings.Contains(string(body), `"rotated":1`) {
 		t.Fatalf("GET /rotate = %d %s", resp.StatusCode, body)
+	}
+}
+
+type dialLease struct{ addr string }
+
+func (d *dialLease) DialContext(ctx context.Context, _, _ string) (net.Conn, error) {
+	return (&net.Dialer{}).DialContext(ctx, "tcp", d.addr)
+}
+func (d *dialLease) Release()            {}
+func (d *dialLease) EgressKey() string   { return "2606:4700:d0::/64" }
+func (d *dialLease) DialNetwork() string { return "tcp6" }
+
+type dialPool struct {
+	fakePool
+	addr string
+}
+
+func (p *dialPool) Acquire(context.Context) (lease, error) {
+	return &dialLease{addr: p.addr}, nil
+}
+
+func TestAbsoluteFormProxyForwardsOvh(t *testing.T) {
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, "pong:"+r.URL.Path)
+	}))
+	defer up.Close()
+	proxy := httptest.NewServer(newConnectHandler(
+		&relay{Port: 18110, Pool: &dialPool{addr: up.Listener.Addr().String()}}, testLogger()))
+	defer proxy.Close()
+
+	proxyURL, err := url.Parse(proxy.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &http.Client{Transport: &http.Transport{Proxy: http.ProxyURL(proxyURL)}}
+	req, err := http.NewRequest(http.MethodPost,
+		"http://oai.endpoints.kepler.ai.cloud.ovh.net/v1/chat", strings.NewReader("hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK || string(body) != "pong:/v1/chat" {
+		t.Fatalf("absolute-form proxy = %d %q", resp.StatusCode, body)
 	}
 }

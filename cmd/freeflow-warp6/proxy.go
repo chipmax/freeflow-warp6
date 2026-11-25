@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -59,8 +60,7 @@ func splitAuthority(authority string) (string, string, error) {
 func newConnectHandler(rel *relay, log *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodConnect {
-			w.Header().Set("Allow", http.MethodConnect)
-			http.Error(w, "CONNECT only", http.StatusMethodNotAllowed)
+			serveAbsoluteForm(w, r, rel, log)
 			return
 		}
 		authority := r.Host
@@ -123,6 +123,76 @@ func newConnectHandler(rel *relay, log *slog.Logger) http.Handler {
 			"target", target, "network", network, "egress", le.EgressKey())
 		splice(client, upstream, bufrw)
 	})
+}
+
+// serveAbsoluteForm forwards normal proxy requests (absolute-form URI) through
+// the same WARP lease. OVH's lane uses this shape instead of CONNECT; the old
+// "CONNECT only" response was rejected by our own relay, not by OVH.
+func serveAbsoluteForm(w http.ResponseWriter, r *http.Request, rel *relay, log *slog.Logger) {
+	if !r.URL.IsAbs() || r.URL.Host == "" {
+		http.Error(w, "absolute-form URI required for non-CONNECT requests", http.StatusBadRequest)
+		return
+	}
+	host := r.URL.Hostname()
+	if !hostAllowed(host) {
+		log.Warn("proxy host rejected", "component", "proxy", "relay", rel.Port, "host", host)
+		http.Error(w, "host not allowlisted: "+host, http.StatusForbidden)
+		return
+	}
+	le, err := rel.Pool.Acquire(r.Context())
+	if err != nil {
+		http.Error(w, "no WARP egress available: "+err.Error(), http.StatusServiceUnavailable)
+		return
+	}
+	defer le.Release()
+
+	transport := &http.Transport{
+		DialContext: func(ctx context.Context, _, addr string) (net.Conn, error) {
+			network := le.DialNetwork()
+			if network == "" {
+				network = "tcp6"
+			}
+			return le.DialContext(ctx, netNetwork(network), addr)
+		},
+		DisableCompression: true,
+	}
+	defer transport.CloseIdleConnections()
+
+	req := r.Clone(r.Context())
+	req.RequestURI = ""
+	req.Host = r.URL.Host
+	req.Header.Del("Proxy-Authorization")
+	req.Header.Del("Proxy-Connection")
+	resp, err := transport.RoundTrip(req)
+	if err != nil {
+		log.Warn("absolute-form upstream failed", "component", "proxy", "relay", rel.Port, "error", err)
+		http.Error(w, "WARP upstream failed: "+err.Error(), http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	for key, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+	flusher, _ := w.(http.Flusher)
+	buf := make([]byte, 32*1024)
+	for {
+		n, readErr := resp.Body.Read(buf)
+		if n > 0 {
+			if _, writeErr := w.Write(buf[:n]); writeErr != nil {
+				return
+			}
+			if flusher != nil {
+				flusher.Flush()
+			}
+		}
+		if readErr != nil {
+			return
+		}
+	}
 }
 
 // netNetwork maps the WARP lease's explicit family to the TCP network name
