@@ -1,7 +1,8 @@
 {
   "listen_base": 18110,
   "relay_count": 4,
-  "control_port": 18200,
+  "bind": "0.0.0.0",
+  "control_port": 18080,
   "stack": "dual",
   "require_ipv6_egress": true,
   "rotate_keys": true,

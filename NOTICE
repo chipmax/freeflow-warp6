@@ -14,7 +14,9 @@ The `warp/` package is derived from `internal/warp` in:
     (originally forked from jasonxu114514/opencode2api)
 
 That source is GPL-3.0. It is included here with the same license and with
-the upstream copyright/license preserved. The userspace WireGuard WARP
+the upstream copyright/license preserved. Its `internal/warp/doc.go` records
+an further upstream origin in `github.com/sudogeeker/ai-route` (`internal/warp`,
+MIT licensed); that attribution is preserved as well. The userspace WireGuard WARP
 registration, probe, pool, rotation and egress-family logic come from that
 package; the HTTP CONNECT proxy, control API, freeflow integration and
 Windows installer are new to this repository.

@@ -9,6 +9,7 @@
 # Local WARP registration state — contains confidential device keys.
 warp-state.json
 warp-state.json.*
+warp-*.json
 *.bak
 
 # Local overrides
@@ -20,3 +21,5 @@ config.json
 .vscode/
 .idea/
 .DS_Store
+
+warp-*.json.*
