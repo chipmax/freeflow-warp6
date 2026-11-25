@@ -70,9 +70,10 @@ the tunnel payload is opaque, so the Bun TLS fingerprint is preserved.
 ### Known model caveats on this host
 
 - OVH's lane sends absolute-form proxy requests, which the earlier relay
-  rejected with its own `405 CONNECT only`. The relay now forwards absolute-form
-  HTTP/HTTPS (including SSE) through the same WARP lease; re-test before
-  excluding `ovh-free/*` again.
+  rejected with its own `405 CONNECT only`; that path is fixed. OVH resolves to
+  IPv4 only, so the relay also falls back to `tcp4`. After both fixes, OVH
+  answers `429 API rate limit exceeded` on all four distinct IPv6 egresses —
+  a global capacity limit, not a relay bug, so rotation cannot clear it.
 
 - `cline/*` models require an authenticated Cline browser session. Without it
   omp returns `401 ... re-authenticate your Cline account`; this is an account
