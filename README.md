@@ -67,6 +67,15 @@ The upstream free lanes are `opencode.ai`, `api.kilo.ai` and OVHcloud AI
 Endpoints. The allowlist in `config.json` must include exactly those hosts;
 the tunnel payload is opaque, so the Bun TLS fingerprint is preserved.
 
+### Known model caveats on this host
+
+- `cline/*` models require an authenticated Cline browser session. Without it
+  omp returns `401 ... re-authenticate your Cline account`; this is an account
+  state issue, not an egress failure.
+- `longcat-2.5-free` is retired upstream and is excluded from the verdict.
+- A bare `OK` reply proves reachability only; it does not prove a model can
+  answer the real omp prompt and produce parseable output.
+
 ## License
 
 GPL-3.0-or-later. See `LICENSE` and `NOTICE`. This repository includes code
