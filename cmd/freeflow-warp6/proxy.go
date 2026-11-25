@@ -91,7 +91,7 @@ func newConnectHandler(rel *relay, log *slog.Logger) http.Handler {
 			network = "tcp6"
 		}
 		target := net.JoinHostPort(host, port)
-		upstream, err := le.DialContext(r.Context(), netNetwork(network), target)
+		upstream, err := dialWithLease(r.Context(), le, target)
 		if err != nil {
 			http.Error(w, "WARP dial failed: "+err.Error(), http.StatusBadGateway)
 			return
@@ -165,11 +165,7 @@ func serveAbsoluteForm(w http.ResponseWriter, r *http.Request, rel *relay, log *
 
 	transport := &http.Transport{
 		DialContext: func(ctx context.Context, _, addr string) (net.Conn, error) {
-			network := le.DialNetwork()
-			if network == "" {
-				network = "tcp6"
-			}
-			return le.DialContext(ctx, netNetwork(network), addr)
+			return dialWithLease(ctx, le, addr)
 		},
 		DisableCompression: true,
 	}
@@ -210,6 +206,22 @@ func serveAbsoluteForm(w http.ResponseWriter, r *http.Request, rel *relay, log *
 			return
 		}
 	}
+}
+
+// dialWithLease tries the lease's preferred family first, then the other one.
+// OVH resolves to IPv4 only, so a tcp6-only dial fails with "no suitable
+// address found" even though the WARP tunnel can reach it over tcp4.
+func dialWithLease(ctx context.Context, le lease, addr string) (net.Conn, error) {
+	first := netNetwork(le.DialNetwork())
+	second := "tcp4"
+	if first == "tcp4" {
+		second = "tcp6"
+	}
+	conn, err := le.DialContext(ctx, first, addr)
+	if err == nil {
+		return conn, nil
+	}
+	return le.DialContext(ctx, second, addr)
 }
 
 // netNetwork maps the WARP lease's explicit family to the TCP network name

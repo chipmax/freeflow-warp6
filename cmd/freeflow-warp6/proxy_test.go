@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -261,6 +262,29 @@ type dialPool struct {
 
 func (p *dialPool) Acquire(context.Context) (lease, error) {
 	return &dialLease{addr: p.addr}, nil
+}
+
+type fallbackLease struct{ calls []string }
+
+func (f *fallbackLease) DialContext(_ context.Context, network, _ string) (net.Conn, error) {
+	f.calls = append(f.calls, network)
+	if network == "tcp6" {
+		return nil, errors.New("no suitable address found")
+	}
+	return nil, nil
+}
+func (f *fallbackLease) Release()            {}
+func (f *fallbackLease) EgressKey() string   { return "2606:4700:d0::/64" }
+func (f *fallbackLease) DialNetwork() string { return "tcp6" }
+
+func TestDialWithLeaseFallsBackToIPv4(t *testing.T) {
+	lease := &fallbackLease{}
+	if _, err := dialWithLease(context.Background(), lease, "51.68.117.147:443"); err != nil {
+		t.Fatalf("dial fallback failed: %v", err)
+	}
+	if len(lease.calls) != 2 || lease.calls[0] != "tcp6" || lease.calls[1] != "tcp4" {
+		t.Fatalf("dial sequence = %v", lease.calls)
+	}
 }
 
 func TestAbsoluteFormProxyForwardsOvh(t *testing.T) {
