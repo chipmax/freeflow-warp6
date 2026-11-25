@@ -1,0 +1,22 @@
+# Binaries / build output
+/freeflow-warp6
+/freeflow-warp6.exe
+/dist/
+/bin/
+*.test
+*.out
+
+# Local WARP registration state — contains confidential device keys.
+warp-state.json
+warp-state.json.*
+*.bak
+
+# Local overrides
+config.json
+.env
+*.log
+
+# Editors
+.vscode/
+.idea/
+.DS_Store

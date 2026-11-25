@@ -1,0 +1,20 @@
+{
+  "listen_base": 18110,
+  "relay_count": 4,
+  "control_port": 18200,
+  "stack": "dual",
+  "require_ipv6_egress": true,
+  "rotate_keys": true,
+  "pool_size": 1,
+  "preload": 1,
+  "attempt_timeout_seconds": 20,
+  "rotate_after_minutes": 180,
+  "rotate_cooldown_seconds": 90,
+  "pause_after_quota_seconds": 900,
+  "state_file": "warp-state.json",
+  "allowed_hosts": [
+    "opencode.ai:443",
+    "api.kilo.ai:443",
+    "oai.endpoints.kepler.ai.cloud.ovh.net:443"
+  ]
+}
