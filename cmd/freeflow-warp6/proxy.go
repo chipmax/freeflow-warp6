@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -130,8 +131,24 @@ func newConnectHandler(rel *relay, log *slog.Logger) http.Handler {
 // "CONNECT only" response was rejected by our own relay, not by OVH.
 func serveAbsoluteForm(w http.ResponseWriter, r *http.Request, rel *relay, log *slog.Logger) {
 	if !r.URL.IsAbs() || r.URL.Host == "" {
-		http.Error(w, "absolute-form URI required for non-CONNECT requests", http.StatusBadRequest)
-		return
+		// Some HTTP clients (Bun's fetch through a proxy) send origin-form
+		// requests with an absolute Host header instead of an absolute URI.
+		host, _, err := splitAuthority(r.Host)
+		if err != nil || !hostAllowed(host) {
+			http.Error(w, "absolute-form URI or allowlisted Host required", http.StatusBadRequest)
+			return
+		}
+		scheme := "https"
+		if strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "http") {
+			scheme = "http"
+		}
+		r = r.Clone(r.Context())
+		r.URL = &url.URL{
+			Scheme:   scheme,
+			Host:     r.Host,
+			Path:     r.URL.Path,
+			RawQuery: r.URL.RawQuery,
+		}
 	}
 	host := r.URL.Hostname()
 	if !hostAllowed(host) {

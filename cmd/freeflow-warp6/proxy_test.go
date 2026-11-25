@@ -216,6 +216,35 @@ func TestControlHTTPOverNetwork(t *testing.T) {
 	}
 }
 
+func TestOriginFormProxyForwardsOvh(t *testing.T) {
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprint(w, "pong:"+r.URL.Path)
+	}))
+	defer up.Close()
+	proxy := httptest.NewServer(newConnectHandler(
+		&relay{Port: 18110, Pool: &dialPool{addr: up.Listener.Addr().String()}}, testLogger()))
+	defer proxy.Close()
+
+	req, err := http.NewRequest(http.MethodPost, proxy.URL+"/v1/chat", strings.NewReader("hello"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Host = "oai.endpoints.kepler.ai.cloud.ovh.net"
+	req.Header.Set("X-Forwarded-Proto", "http")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK || string(body) != "pong:/v1/chat" {
+		t.Fatalf("origin-form proxy = %d %q", resp.StatusCode, body)
+	}
+}
+
 type dialLease struct{ addr string }
 
 func (d *dialLease) DialContext(ctx context.Context, _, _ string) (net.Conn, error) {
