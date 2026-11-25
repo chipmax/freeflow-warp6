@@ -7,8 +7,9 @@ is an HTTP `CONNECT` tunnel backed by its own userspace WireGuard WARP
 registration, so free-tier quota is keyed to a private IPv6 `/64` instead of a
 shared Cloudflare IPv4.
 
-> Status: experimental. See `docs/DESIGN.md` for the measured evidence this
-> design is based on. GPL-3.0, derived from `chipmax/o2a-v2` `internal/warp`
+> Status: experimental. Single-relay end-to-end IPv6 egress and `/rotate`
+> were verified on this host; a full 33-model load pass is still limited by
+> Cloudflare's registration pacing. See `docs/DESIGN.md` for evidence. GPL-3.0, derived from `chipmax/o2a-v2` `internal/warp`
 > (see `NOTICE`).
 
 ## Why

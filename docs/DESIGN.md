@@ -59,3 +59,14 @@ fingerprint while the packet leaves from the WARP IPv6 egress.
   committed. Deleting it on a new machine registers fresh devices.
 - Respect the upstream free-tier terms; this is a personal reliability tool,
   not a quota-bypass service for third parties.
+
+## Optional companion tools (checked 2026-11-25)
+
+- `vernette/warpscout` (719 stars, MIT, active) scans WARP endpoints and can
+  emit `usque` configs. Useful if a network blocks the default Cloudflare
+  endpoints or if you want to pre-pick a non-DPI node. It is **not** a runtime
+  dependency of this repo.
+- `naobyprawira/warp-rotating-proxy` is conceptually similar (CONNECT +
+  `POST /_rotate` + `tunnel rotate-keys`) but has 0 stars and no license, so
+  it was not copied. The `rotate-keys` and spent-prefix-cache ideas are
+  already implemented here via the o2a WARP pool.
