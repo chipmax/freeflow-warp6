@@ -73,6 +73,12 @@ the tunnel payload is opaque, so the Bun TLS fingerprint is preserved.
   omp returns `401 ... re-authenticate your Cline account`; this is an account
   state issue, not an egress failure.
 - `longcat-2.5-free` is retired upstream and is excluded from the verdict.
+- `ovh-free/*` models return `405 CONNECT only` on this CONNECT-only relay
+  path (verified with `ovh-free/Qwen3.5-9B`); they need a different transport
+  and are excluded from the whitelist.
+- The `nvidia/*:free`, `openrouter/free`, `particle-ai/particle-1:free` and
+  `tidepool-alpha-free` probes timed out at 120s even with stdin closed; they
+  are not in the verified no-auth whitelist.
 - A bare `OK` reply proves reachability only; it does not prove a model can
   answer the real omp prompt and produce parseable output.
 
